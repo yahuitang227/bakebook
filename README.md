@@ -28,7 +28,7 @@ For photos that matter, especially doneness shots, open the recipe and tap **Add
 ## Adding recipes
 
 1. In the app: Add, then open the AI conversion prompt and copy it.
-2. Paste the prompt plus the recipe page text (or MarkItDown or downsub output for PDFs and videos) to Claude.
+2. Paste the prompt plus the recipe page text (or MarkItDown or downsub output for PDFs and videos) to your choice of AI agent.
 3. Paste the returned JSON into Add, then Import.
 
 To make a recipe permanent across devices, you can also paste its JSON as a new entry inside `recipes-data.js` using GitHub's web editor (add a comma after the previous recipe's closing brace).
