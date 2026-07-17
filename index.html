@@ -875,7 +875,9 @@
 
 		.log p {
 			font-size: 13.5px;
-			margin: 7px 0 0
+			margin: 7px 0 0;
+			white-space: pre-wrap;
+			overflow-wrap: anywhere
 		}
 
 		.log p b {
@@ -916,6 +918,44 @@
 		.logform textarea {
 			min-height: 58px;
 			resize: vertical
+		}
+
+		.log .d {
+			align-items: flex-start
+		}
+
+		.log .d span {
+			min-width: 0;
+			overflow-wrap: anywhere
+		}
+
+		.log .d .textbtn {
+			flex: 0 0 auto
+		}
+
+		.datewrap {
+			width: 100%;
+			min-width: 0;
+			border: 1px solid var(--line);
+			border-radius: 10px;
+			background: #fff;
+			padding: 10px 12px;
+			overflow: hidden
+		}
+
+		.logform .datewrap input[type=date] {
+			display: block;
+			width: 100%;
+			min-width: 0;
+			max-width: 100%;
+			border: 0;
+			padding: 0;
+			background: transparent;
+			color: var(--ink);
+			font-family: var(--sans);
+			font-size: 14.5px;
+			line-height: 1.3;
+			box-sizing: border-box
 		}
 
 		.starpick {
@@ -1670,7 +1710,7 @@
         ${e.to_improve ? `<p><b>To improve</b>${esc(e.to_improve)}</p>` : ''}
       </div>`}).join('') : `<p class="hint">No entries yet. After you bake, note what worked and what to improve. Your latest note appears at the top of this recipe next time.</p>`}
     <div class="logform">
-      <label for="lg-date">Date</label><input type="date" id="lg-date" value="${new Date().toISOString().slice(0, 10)}">
+      <label for="lg-date">Date</label><div class="datewrap"><input type="date" id="lg-date" value="${new Date().toISOString().slice(0, 10)}"></div>
       <label for="lg-mold">Pan used</label><input type="text" id="lg-mold" placeholder="e.g. 8 in round, light metal">
       <label>Rating</label>
       <div class="starpick" id="starpick">${[1, 2, 3, 4, 5].map(n => `<span data-n="${n}" onclick="pickStar(${n})">\u2605</span>`).join('')}</div>
