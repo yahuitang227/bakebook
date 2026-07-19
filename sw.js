@@ -1,4 +1,4 @@
-/* Bake Book service worker — caches the app shell for offline use.
+/* Bakebook service worker — caches the app shell for offline use.
    Recipe data added by the user lives in localStorage and is unaffected. */
 const CACHE = 'bakebook-v3';
 const SHELL = ['./', './index.html', './recipes-data.js', './manifest.json', './icon-192.png', './icon-512.png'];

@@ -1,4 +1,4 @@
-# Bake Book
+# Bakebook
 
 A personal baking recipe notebook (PWA). Free to host, works offline, installs to your iPhone Home Screen. The interface is English; recipe content keeps each author's original language and wording.
 

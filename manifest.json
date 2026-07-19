@@ -1,6 +1,6 @@
 {
-  "name": "Bake Book",
-  "short_name": "Bake Book",
+  "name": "Bakebook",
+  "short_name": "Bakebook",
   "description": "My personal baking recipe notebook",
   "start_url": "./index.html",
   "scope": "./",
