@@ -262,6 +262,11 @@
 			color: var(--accent)
 		}
 
+		.tag.kind {
+			background: var(--ink);
+			color: #fff
+		}
+
 		.empty {
 			color: var(--ink2);
 			text-align: center;
@@ -322,6 +327,19 @@
 			color: var(--ink2);
 			font-size: 12.5px;
 			margin-top: 8px
+		}
+
+		.kindpill {
+			display: inline-block;
+			font-size: 11px;
+			font-weight: 700;
+			letter-spacing: .6px;
+			text-transform: uppercase;
+			background: var(--accent-soft);
+			color: var(--accent);
+			border-radius: 6px;
+			padding: 3px 9px;
+			margin-top: 14px
 		}
 
 		.btns {
@@ -1187,6 +1205,7 @@
 			backc: '<svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>',
 			search: '<svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>',
 			log: '<svg class="ic" viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>',
+			bulb: '<svg class="ic" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 00-3.5 10.9c.8.6 1.5 1.6 1.5 2.6h4c0-1 .7-2 1.5-2.6A6 6 0 0012 3z"/></svg>',
 			cake: '<svg class="ic" viewBox="0 0 24 24"><path d="M4 14h16v5a1 1 0 01-1 1H5a1 1 0 01-1-1z"/><path d="M6 14v-3a6 6 0 0112 0v3"/><path d="M12 4v2"/></svg>',
 			cam: '<svg class="ic" viewBox="0 0 24 24"><path d="M3 8a2 2 0 012-2h2.5l1.2-2h6.6L16.5 6H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><circle cx="12" cy="12.5" r="3.5"/></svg>',
 			trash: '<svg class="ic" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>'
@@ -1206,6 +1225,9 @@
 
 		const pkey = (id, slot) => id + '|' + slot;
 		const myPhoto = (id, slot) => photos[pkey(id, slot)] || null;
+
+		/* Record kind helper: "recipe" (default) or "tips" */
+		const recordKind = r => r && r.kind === 'tips' ? 'tips' : 'recipe';
 
 		/* Pick an image, downscale to max 1200px, store as JPEG data URL */
 		function pickPhoto(id, slot) {
@@ -1450,6 +1472,7 @@
 				if (activeCats.size && ![...activeCats].every(c => cats.includes(c))) return false;
 				if (!q) return true;
 				const hay = [r.title?.original, r.title?.alt, r.source?.site, r.source?.author,
+				recordKind(r) === 'tips' ? 'tips' : '',
 				...(r.ingredient_groups || []).flatMap(g => g.ingredients.map(i => i.name_original)),
 				...(r.tips || []).map(t => t.text_original), ...cats.map(catLabel)].join(' ').toLowerCase();
 				return q.toLowerCase().split(/\s+/).every(w => hay.includes(w));
@@ -1459,20 +1482,22 @@
 			const cards = rs.map(r => {
 				const cats = effectiveCategories(r);
 				const viaTip = cats.filter(c => !(r.categories || []).includes(c));
+				const tipsOnly = recordKind(r) === 'tips';
 				const total = r.times_minutes?.total;
 				const logs = (bakeLogs[r.id] || []).length;
 				const cover = myPhoto(r.id, 'cover') || safeHttpUrl(r.photos?.cover_url);
 				return `<div class="card" onclick="go('#/r/${r.id}')">
-      <div class="photo">${cover ? `<img loading="lazy" src="${esc(cover)}" alt="" onerror="this.parentNode.innerHTML='${I.cake.replace(/'/g, "\\'")}'">` : I.cake}</div>
+      <div class="photo">${cover ? `<img loading="lazy" src="${esc(cover)}" alt="" onerror="this.parentNode.innerHTML='${(tipsOnly ? I.bulb : I.cake).replace(/'/g, "\\'")}'">` : (tipsOnly ? I.bulb : I.cake)}</div>
       <div class="b">
         <h3>${esc(r.title?.original)}</h3>
         <div class="meta">
           ${total ? `<span>${I.clock}${total >= 60 ? (total % 60 ? Math.floor(total / 60) + ' hr ' + total % 60 + ' min' : total / 60 + ' hr') : total + ' min'}</span>` : ''}
           ${r.mold ? `<span>${I.pan}${esc(moldShort(r.mold))}</span>` : ''}
+          ${tipsOnly ? `<span>${I.bulb}${(r.tips || []).length} tip${(r.tips || []).length === 1 ? '' : 's'}</span>` : ''}
           ${r.video?.youtube_url ? `<span>${I.play}Video</span>` : ''}
           ${logs ? `<span>${I.log}${logs} log${logs > 1 ? 's' : ''}</span>` : ''}
         </div>
-        <div class="tags">${cats.map(c => `<span class="tag ${viaTip.includes(c) ? 'via' : ''}">${catLabel(c)}${viaTip.includes(c) ? ' \u00B7 via tip' : ''}</span>`).join('')}</div>
+        <div class="tags">${tipsOnly ? '<span class="tag kind">Tips only</span>' : ''}${cats.map(c => `<span class="tag ${viaTip.includes(c) ? 'via' : ''}">${catLabel(c)}${viaTip.includes(c) ? ' \u00B7 via tip' : ''}</span>`).join('')}</div>
       </div></div>`;
 			}).join('');
 			return `
@@ -1494,6 +1519,7 @@
 		function detailView(id) {
 			const r = allRecipes().find(x => x.id === id);
 			if (!r) return '<p class="empty">Recipe not found.</p>';
+			const tipsOnly = recordKind(r) === 'tips';
 			const st = convState[id] || (convState[id] = { metric: false, applied: false, material: r.mold?.material || 'unknown' });
 			const origPan = moldToPan(r.mold);
 			let factor = 1;
@@ -1508,7 +1534,8 @@
 			return `
   <button class="back" onclick="go('#/')">${I.backc}Recipes</button>
   <div class="hero">${heroSlot(r)}</div>
-  <h1 class="rtitle">${esc(r.title?.original)}</h1>
+  ${tipsOnly ? '<span class="kindpill">Tips collection</span>' : ''}
+  <h1 class="rtitle" ${tipsOnly ? 'style="margin-top:8px"' : ''}>${esc(r.title?.original)}</h1>
   ${r.title?.alt ? `<div class="alt">${esc(r.title.alt)}</div>` : ''}
   <div class="src">${[r.source?.site, r.source?.author ? `by ${r.source.author}` : null, r.servings?.original_text ? `Makes ${r.servings.original_text}` : null].filter(Boolean).map(esc).join(' \u00B7 ')}</div>
   <div class="btns">
@@ -1519,16 +1546,16 @@
   ${timesStrip(r)}
   ${r.video?.youtube_url ? videoBlock(r) : ''}
   ${moldBlock(r)}
-  ${converterBlock(r, st, factor)}
+  ${tipsOnly ? '' : converterBlock(r, st, factor)}
   ${ingredientsBlock(r, st, factor)}
   ${stepsBlock(r)}
   ${donenessBlock(r)}
   ${r.temperature?.original_text ? `<section class="sec"><h2>Temperature</h2>
      <div class="kv" style="margin-top:12px"><div><b>From the recipe</b>${esc(r.temperature.original_text)}</div></div>
-     <p class="hint">When changing pans, keep the original temperature and adjust time. See the converter advice above, or the <a href="https://www.bakevert.com/blog/adjusting-baking-time-temperature-guide" target="_blank" rel="noopener">Bakevert adjustment guide</a>. The toothpick test is the final judge.</p></section>`: ''}
+     ${tipsOnly ? '' : `<p class="hint">When changing pans, keep the original temperature and adjust time. See the converter advice above, or the <a href="https://www.bakevert.com/blog/adjusting-baking-time-temperature-guide" target="_blank" rel="noopener">Bakevert adjustment guide</a>. The toothpick test is the final judge.</p>`}</section>`: ''}
   ${tipsBlock(r)}
   ${r.notes_original ? `<section class="sec"><h2>Author notes</h2><div class="quote">${esc(r.notes_original)}</div></section>` : ''}
-  ${bakeLogBlock(r, logs)}
+  ${tipsOnly ? '' : bakeLogBlock(r, logs)}
   ${manageRecipeBlock(id, r)}
   `;
 		}
@@ -1553,8 +1580,9 @@
 		}
 		const MAT_LABEL = { 'metal-light': 'Light metal', 'metal-dark': 'Dark metal', 'glass': 'Glass', 'mousse-ring': 'Mousse ring', 'silicone': 'Silicone', 'paper': 'Paper', 'unknown': 'Not specified' };
 		function moldBlock(r) {
-			const m = r.mold; if (!m) return '';
-			const dim = m.shape === 'rectangle' ? `${m.length} \u00D7 ${m.diameter_or_width} ${unitShort(m.size_unit)}` : `${m.diameter_or_width} ${unitShort(m.size_unit)}`;
+			const m = r.mold; if (!m || (!m.shape && !m.original_text)) return '';
+			const dim = m.diameter_or_width == null ? '\u2014'
+				: m.shape === 'rectangle' ? `${m.length} \u00D7 ${m.diameter_or_width} ${unitShort(m.size_unit)}` : `${m.diameter_or_width} ${unitShort(m.size_unit)}`;
 			return `<section class="sec"><h2>Original pan</h2>
     <div class="kv">
       <div><b>Shape</b>${esc(m.shape || '\u2014')}</div>
@@ -1644,6 +1672,7 @@
 		}
 		function ingredientsBlock(r, st, factor) {
 			const groups = r.ingredient_groups || [];
+			if (!groups.length) return '';
 			const rows = g => g.ingredients.map(i => {
 				const a = displayAmount(i, r, factor, st.metric);
 				return `<div class="ing"><div class="a">${esc(a.main)}${a.sub ? `<small>${esc(a.sub)}</small>` : ''}</div>
@@ -1687,7 +1716,8 @@
 		}
 		function tipsBlock(r) {
 			if (!(r.tips || []).length) return '';
-			return `<section class="sec"><h2>Tips, comments &amp; Q&amp;A</h2>
+			const h = recordKind(r) === 'tips' ? 'Tips' : 'Tips, comments &amp; Q&amp;A';
+			return `<section class="sec"><h2>${h}</h2>
     ${r.tips.map(t => `<div class="tip"><div class="txt">${esc(t.text_original)}</div>
       <div class="who">${t.author ? `${esc(t.author)}` : ''}${t.source ? `<span>${esc(t.source)}</span>` : ''}
         ${t.topic ? `<span class="topic">${esc(t.topic)}</span>` : ''}
@@ -1770,7 +1800,13 @@
 		}
 
 		/* ================= add / edit view ================= */
-		const AI_PROMPT = `You are an agentic recipe-conversion assistant. Convert one baking recipe into a single JSON object for my personal Bake Book app, following Recipe Conversion Standard v1 exactly.
+		const AI_PROMPT = `You are an agentic recipe-conversion assistant. Convert one baking source into a single JSON object for my personal Bake Book app, following Recipe Conversion Standard v1 exactly.
+
+RECORD KIND — CHOOSE THE RIGHT TEMPLATE FIRST
+- Every record declares "kind": "recipe" for a full recipe, or "tips" for a tips-and-techniques source that has no recipe card (for example an Instagram tips reel, a technique thread, or an article of baking advice with no ingredient list or method).
+- Use "recipe" whenever the source provides an ingredient list and method steps. For kind "recipe": ingredient_groups and steps must each be non-empty.
+- Use "tips" only when the source genuinely provides no ingredient list and no method steps. Never invent ingredients or steps to force a "recipe" record. For kind "tips": ingredient_groups must be [] and steps must be [], and tips must contain at least one actionable tip.
+- title.original for kind "tips": use the source's own title if it has one. If it has none, derive a concise descriptive label (e.g. "Soft vanilla cake — even bake tips"). This derived label is the ONLY field exempt from the verbatim rules; keep the post's full original opening line verbatim in notes_original.
 
 SOURCE ACQUISITION
 - When Source URL contains a real URL, open and read the webpage yourself. Do not ask me to paste the article unless the page is inaccessible.
@@ -1788,10 +1824,11 @@ VERBATIM CONTENT RULES
 - Do not calculate an unstated total time, convert temperatures, convert unsupported units, estimate grams from cups, infer serving counts, or derive quantities from outside knowledge. The app may show display-only gram estimates later; the JSON must contain only source-stated quantities.
 
 STRICT VALUE RULES
+- kind: exactly "recipe" or "tips" per RECORD KIND above.
 - id: lowercase ASCII kebab-case only, matching ^[a-z0-9]+(?:-[a-z0-9]+)*$. Derive it from the recipe title or URL. No spaces, apostrophes, punctuation, or Unicode characters.
 - title.alt: use an alternate title only when the source explicitly provides one. Do not create or translate an alternate title; otherwise use null.
 - language: use a concise language code such as en, fr, zh, or mixed; use null only when it cannot be identified.
-- categories: use only this controlled vocabulary: sponge-cake, chocolate-cake, chiffon-cake, pound-cake, roll-cake, cheesecake, cupcakes, muffins, cookies, brownies, tart, pie, pastry, bread, quick-bread, scones, biscuits, donuts, macarons, buttercream, ganache, frosting, glaze, whipped-cream, meringue, custard, mousse, no-bake, fruit-dessert. Include only categories supported by the recipe itself. A tip may add another category through affects_categories.
+- categories: use only this controlled vocabulary: sponge-cake, chocolate-cake, chiffon-cake, pound-cake, roll-cake, cheesecake, cupcakes, muffins, cookies, brownies, tart, pie, pastry, bread, quick-bread, scones, biscuits, donuts, macarons, buttercream, ganache, frosting, glaze, whipped-cream, meringue, custard, mousse, no-bake, fruit-dessert. Include only categories supported by the recipe itself. A tip may add another category through affects_categories. For kind "tips", categories stays [] unless the source is explicitly about one of the listed categories; individual tips carry affects_categories.
 - Ingredient unit: use only g, ml, cup, tbsp, tsp, whole, pinch, or null.
 - When the source gives an unsupported unit but also gives an explicit supported equivalent, parse the supported equivalent. Otherwise set amount and unit to null and preserve the full quantity in amount_original. Do not perform your own conversion.
 - scalable: true for normal recipe quantities; false for quantities that should not be mathematically scaled, such as “to taste”, “as needed”, a nonnumeric garnish, or an unquantified pan-greasing instruction.
@@ -1808,9 +1845,10 @@ STRICT VALUE RULES
 - notes_original is verbatim author-supplied notes that are not already represented elsewhere. Join separate retained paragraphs with \\n. Otherwise use null.
 - bake_log must always be an empty array [].
 
-REQUIRED JSON SHAPE
+TEMPLATE A — kind "recipe"
 Every key below must be present exactly once. Use null or [] when the source does not provide a value. The objects shown inside ingredient_groups, steps, and tips are structural examples, not placeholder records: include only real extracted items, and use tips: [] when there are no actionable tips.
 {
+  "kind": "recipe",
   "id": "lowercase-kebab-case",
   "title": {"original": null, "alt": null},
   "language": null,
@@ -1834,7 +1872,31 @@ Every key below must be present exactly once. Use null or [] when the source doe
   "bake_log": []
 }
 
+TEMPLATE B — kind "tips"
+Same keys in the same order, with these fixed values: "kind": "tips", "ingredient_groups": [], "steps": []. tips must contain at least one entry. Every tip keeps its verbatim wording. mold, temperature, times, and servings stay null-filled unless the source explicitly states them.
+{
+  "kind": "tips",
+  "id": "lowercase-kebab-case",
+  "title": {"original": "Short label for this tips collection", "alt": null},
+  "language": null,
+  "source": {"url": null, "site": null, "author": null},
+  "video": {"youtube_url": null},
+  "categories": [],
+  "servings": {"original_text": null, "amount": null, "unit": null},
+  "times_minutes": {"prep": null, "cook": null, "bake": null, "additional": null, "total": null, "original_text": null},
+  "temperature": {"value": null, "unit": null, "original_text": null},
+  "mold": {"original_text": null, "shape": null, "diameter_or_width": null, "length": null, "height": null, "size_unit": null, "layers": null, "count": null, "material": null, "inferred_from_photo": false, "lining": null},
+  "cup_standard": null,
+  "ingredient_groups": [],
+  "steps": [],
+  "photos": {"cover_url": null, "doneness": []},
+  "tips": [{"text_original": null, "source": null, "author": null, "topic": null, "affects_categories": []}],
+  "notes_original": null,
+  "bake_log": []
+}
+
 FINAL VALIDATION BEFORE RESPONDING
+- Internally verify kind matches the record contents: "recipe" has non-empty ingredient_groups and steps; "tips" has both empty and at least one tip.
 - Internally verify every required key and nested key is present.
 - Internally verify the response can be parsed by JSON.parse without modification.
 - Use double quotes for all keys and strings. Do not use comments, trailing commas, undefined, NaN, Infinity, Markdown fences, headings, explanations, or text before/after the object.
@@ -1851,6 +1913,7 @@ Comments/Q&A (optional; browse them yourself when available):
 <paste comments>`;
 
 		const REQUIRED_RECIPE_KEYS = ['id', 'title', 'language', 'source', 'video', 'categories', 'servings', 'times_minutes', 'temperature', 'mold', 'cup_standard', 'ingredient_groups', 'steps', 'photos', 'tips', 'notes_original', 'bake_log'];
+		const RECORD_KINDS = new Set(['recipe', 'tips']);
 		const INGREDIENT_UNITS = new Set(['g', 'ml', 'cup', 'tbsp', 'tsp', 'whole', 'pinch', null]);
 		const IMPORT_CATEGORIES = new Set(Object.keys(CAT_LABELS));
 		const MOLD_SHAPES = new Set(['round', 'square', 'rectangle', null]);
@@ -1889,13 +1952,18 @@ Comments/Q&A (optional; browse them yourself when available):
 			if (!plainObject(obj)) return ['top level: must be a JSON object'];
 			REQUIRED_RECIPE_KEYS.forEach(k => { if (!Object.prototype.hasOwnProperty.call(obj, k)) err(k, 'missing required key') });
 
+			/* kind is optional for backward compatibility; missing means "recipe" */
+			const kind = obj.kind === undefined ? 'recipe' : obj.kind;
+			if (obj.kind !== undefined && !RECORD_KINDS.has(obj.kind)) err('kind', 'must be "recipe" or "tips"');
+			const isTips = kind === 'tips';
+
 			if (typeof obj.id !== 'string' || !obj.id) err('id', 'must be a non-empty string');
 			else if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(obj.id)) err('id', 'use lowercase ASCII kebab-case only');
 			else if (obj.id.length > 120) err('id', 'must be 120 characters or fewer');
 
 			if (!plainObject(obj.title)) err('title', 'must be an object');
 			else {
-				if (typeof obj.title.original !== 'string' || !obj.title.original.trim()) err('title.original', 'must be a non-empty string');
+				if (typeof obj.title.original !== 'string' || !obj.title.original.trim()) err('title.original', isTips ? 'must be a non-empty string (for a tips record, use the post title or a short derived label)' : 'must be a non-empty string');
 				if (!strOrNull(obj.title.alt)) err('title.alt', 'must be a string or null');
 			}
 			if (!strOrNull(obj.language)) err('language', 'must be a string or null');
@@ -1945,7 +2013,8 @@ Comments/Q&A (optional; browse them yourself when available):
 
 			if (!CUP_STANDARDS.has(obj.cup_standard)) err('cup_standard', 'must be US, UK, TW-rice-cup, or null');
 
-			if (!Array.isArray(obj.ingredient_groups) || !obj.ingredient_groups.length) err('ingredient_groups', 'must be a non-empty array');
+			if (!Array.isArray(obj.ingredient_groups)) err('ingredient_groups', 'must be an array');
+			else if (!obj.ingredient_groups.length && !isTips) err('ingredient_groups', 'must be a non-empty array for kind "recipe" (use "kind": "tips" for a tips-only record)');
 			else obj.ingredient_groups.forEach((g, gi) => {
 				if (!plainObject(g)) { err(`ingredient_groups[${gi}]`, 'must be an object'); return }
 				if (!strOrNull(g.group_name)) err(`ingredient_groups[${gi}].group_name`, 'must be a string or null');
@@ -1962,7 +2031,8 @@ Comments/Q&A (optional; browse them yourself when available):
 				});
 			});
 
-			if (!Array.isArray(obj.steps) || !obj.steps.length) err('steps', 'must be a non-empty array');
+			if (!Array.isArray(obj.steps)) err('steps', 'must be an array');
+			else if (!obj.steps.length && !isTips) err('steps', 'must be a non-empty array for kind "recipe" (use "kind": "tips" for a tips-only record)');
 			else obj.steps.forEach((step, i) => {
 				const p = `steps[${i}]`;
 				if (!plainObject(step)) { err(p, 'must be an object'); return }
@@ -1971,6 +2041,11 @@ Comments/Q&A (optional; browse them yourself when available):
 				if (!strOrNull(step.photo_url)) err(`${p}.photo_url`, 'must be a string or null');
 				else if (step.photo_url && !safeHttpUrl(step.photo_url)) err(`${p}.photo_url`, 'must be an http/https URL or null');
 			});
+
+			if (isTips) {
+				if (Array.isArray(obj.ingredient_groups) && obj.ingredient_groups.length) err('ingredient_groups', 'must be [] for kind "tips" (if the source has ingredients, use kind "recipe")');
+				if (Array.isArray(obj.steps) && obj.steps.length) err('steps', 'must be [] for kind "tips" (if the source has method steps, use kind "recipe")');
+			}
 
 			if (!plainObject(obj.photos)) err('photos', 'must be an object');
 			else {
@@ -1986,14 +2061,17 @@ Comments/Q&A (optional; browse them yourself when available):
 			}
 
 			if (!Array.isArray(obj.tips)) err('tips', 'must be an array');
-			else obj.tips.forEach((tip, i) => {
-				const p = `tips[${i}]`;
-				if (!plainObject(tip)) { err(p, 'must be an object'); return }
-				['text_original', 'source', 'author', 'topic'].forEach(k => { if (!strOrNull(tip[k])) err(`${p}.${k}`, 'must be a string or null') });
-				if (typeof tip.text_original !== 'string' || !tip.text_original.trim()) err(`${p}.text_original`, 'must be a non-empty string');
-				if (!Array.isArray(tip.affects_categories)) err(`${p}.affects_categories`, 'must be an array');
-				else tip.affects_categories.forEach((c, ci) => { if (!IMPORT_CATEGORIES.has(c)) err(`${p}.affects_categories[${ci}]`, `unsupported category "${c}"`) });
-			});
+			else {
+				if (isTips && !obj.tips.length) err('tips', 'a tips record needs at least one tip');
+				obj.tips.forEach((tip, i) => {
+					const p = `tips[${i}]`;
+					if (!plainObject(tip)) { err(p, 'must be an object'); return }
+					['text_original', 'source', 'author', 'topic'].forEach(k => { if (!strOrNull(tip[k])) err(`${p}.${k}`, 'must be a string or null') });
+					if (typeof tip.text_original !== 'string' || !tip.text_original.trim()) err(`${p}.text_original`, 'must be a non-empty string');
+					if (!Array.isArray(tip.affects_categories)) err(`${p}.affects_categories`, 'must be an array');
+					else tip.affects_categories.forEach((c, ci) => { if (!IMPORT_CATEGORIES.has(c)) err(`${p}.affects_categories[${ci}]`, `unsupported category "${c}"`) });
+				});
+			}
 
 			if (!strOrNull(obj.notes_original)) err('notes_original', 'must be a string or null');
 			if (!Array.isArray(obj.bake_log)) err('bake_log', 'must be an array');
@@ -2004,14 +2082,17 @@ Comments/Q&A (optional; browse them yourself when available):
 			return `
   <h1 class="rtitle" style="margin-top:22px">Add recipe</h1>
   <section class="sec"><h2>Paste recipe JSON</h2>
-    <p class="hint">Copy the agentic conversion prompt below and give it a recipe URL. A browsing-capable AI should read the page and comments itself, validate the schema, and return one raw JSON object. To update a recipe, open the recipe and tap <b>Edit JSON</b>; importing the same id replaces or overrides that recipe on this device.</p>
-    <textarea class="mono-ta" id="add-json" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder='{"id": "...", "title": {...}}'></textarea>
+    <p class="hint">Copy the agentic conversion prompt below and give it a source URL. A browsing-capable AI should read the page and comments itself, validate the schema, and return one raw JSON object. The prompt has two templates: <b>kind "recipe"</b> for a full recipe, and <b>kind "tips"</b> for a tips-only post (like a technique reel) with no ingredients or steps. To update a record, open it and tap <b>Edit JSON</b>; importing the same id replaces or overrides it on this device.</p>
+    <textarea class="mono-ta" id="add-json" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder='{"kind": "recipe", "id": "...", "title": {...}}'></textarea>
     <div id="add-msg" aria-live="polite"></div>
     <button class="btn accent" onclick="importJSON()">Import</button>
     <details class="protocol"><summary>Agentic AI conversion prompt (tap to open and copy)</summary>
       <pre class="tpl" id="tpl">${esc(AI_PROMPT)}</pre>
       <button class="btn ghost" onclick="copyConversionPrompt(this)">Copy prompt</button>
     </details>
+  </section>
+  <section class="sec"><h2>Recipe vs tips records</h2>
+    <p class="hint">A <b>recipe</b> record needs at least one ingredient group and one step. A <b>tips</b> record ("kind": "tips") stores a collection of techniques with no ingredients or steps — it shows up in the library with a “Tips only” badge, is searchable, and its tips can add categories through affects_categories, so a buttercream tips post appears under the Buttercream chip.</p>
   </section>
   <section class="sec"><h2>About photos</h2>
     <p class="hint">The JSON can carry photo links from the source site in three places: <b>photos.cover_url</b> for the card and header, <b>steps[].photo_url</b> for a photo under a step, and <b>photos.doneness[]</b> for extra reference shots. The app tries to load them, but many sites block images from other domains, and links break when a site changes.</p>
@@ -2086,7 +2167,7 @@ Comments/Q&A (optional; browse them yourself when available):
 			} else userRecipes.unshift(obj);
 
 			if (!save(LS_RECIPES, userRecipes)) return;
-			msg.innerHTML = `<p class="okmsg">${editingId ? 'Updated' : 'Imported'}: ${esc(obj.title.original)}</p>`;
+			msg.innerHTML = `<p class="okmsg">${editingId ? 'Updated' : 'Imported'}: ${esc(obj.title.original)}${recordKind(obj) === 'tips' ? ' (tips record)' : ''}</p>`;
 			setTimeout(() => go('#/r/' + encodeURIComponent(obj.id)), 500);
 		}
 
